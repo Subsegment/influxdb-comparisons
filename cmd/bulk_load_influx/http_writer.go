@@ -51,15 +51,15 @@ type HTTPWriterConfig struct {
 // HTTPWriter is a Writer that writes to an InfluxDB HTTP server.
 type HTTPWriter struct {
 	client fasthttp.Client
-	c   HTTPWriterConfig
-	url []byte
+	c      HTTPWriterConfig
+	url    []byte
 }
 
 // NewHTTPWriter returns a new HTTPWriter from the supplied HTTPWriterConfig.
 func NewHTTPWriter(c HTTPWriterConfig, url string) *HTTPWriter {
 	return &HTTPWriter{
 		client: fasthttp.Client{
-			Name: "bulk_load_influx",
+			Name:                "bulk_load_influx",
 			MaxIdleConnDuration: DefaultIdleConnectionTimeout,
 		},
 		c:   c,
@@ -97,7 +97,7 @@ func (w *HTTPWriter) WriteLineProtocol(body []byte, isGzip bool) (int64, error) 
 		if sc == 500 && backpressurePred(resp.Body()) {
 			err = BackoffError
 			log.Printf("backoff suggested, reason: %s", resp.Body())
-		} else if sc != fasthttp.StatusNoContent {
+		} else if sc != fasthttp.StatusOK {
 			err = fmt.Errorf("[DebugInfo: %s] Invalid write response (status %d): %s", w.c.DebugInfo, sc, resp.Body())
 		}
 	}

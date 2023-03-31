@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	BackoffError error = fmt.Errorf("backpressure is needed")
+	BackoffError      error  = fmt.Errorf("backpressure is needed")
 	backoffMagicWords []byte = []byte("engine: cache maximum memory size exceeded")
 )
 
@@ -45,12 +45,12 @@ func NewHTTPWriter(c HTTPWriterConfig) LineProtocolWriter {
 		},
 
 		c:   c,
-		url: []byte(c.Host + "/api/put"),
+		url: []byte(c.Host + "/api/v1/tsdb/put?db=public&tenant=cnosdb&pretty=true&precision=ms"),
 	}
 }
 
 var (
-	post      = []byte("POST")
+	post                  = []byte("POST")
 	applicationJsonHeader = []byte("application/json")
 )
 
@@ -60,9 +60,10 @@ var (
 func (w *HTTPWriter) WriteLineProtocol(body []byte) (int64, error) {
 	req := fasthttp.AcquireRequest()
 	req.Header.SetContentTypeBytes(applicationJsonHeader)
-	req.Header.Set("Content-Encoding", "gzip")
+	req.Header.Add("Authorization", "Basic cm9vdDo=")
 	req.Header.SetMethodBytes(post)
 	req.Header.SetRequestURIBytes(w.url)
+
 	req.SetBody(body)
 
 	resp := fasthttp.AcquireResponse()
@@ -73,7 +74,7 @@ func (w *HTTPWriter) WriteLineProtocol(body []byte) (int64, error) {
 		sc := resp.StatusCode()
 		//if sc == 500 && backpressurePred(resp.Body()) {
 		//	err = BackoffError
-		if (sc != fasthttp.StatusNoContent && sc != fasthttp.StatusOK) {
+		if sc != fasthttp.StatusNoContent && sc != fasthttp.StatusOK {
 			err = fmt.Errorf("Invalid write response (status %d): %s", sc, resp.Body())
 		}
 	}

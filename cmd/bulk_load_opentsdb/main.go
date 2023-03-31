@@ -118,7 +118,7 @@ func (l *OpenTsdbBulkLoad) CleanUp() {
 func (l *OpenTsdbBulkLoad) UpdateReport(params *report.LoadReportParams) (reportTags [][2]string, extraVals []report.ExtraVal) {
 	params.DBType = "OpenTSDB"
 	params.DestinationUrl = l.daemonUrls[0]
-	params.IsGzip = true
+	params.IsGzip = false
 	return
 }
 
@@ -163,7 +163,7 @@ func (l *OpenTsdbBulkLoad) RunScanner(r io.Reader, syncChanDone chan int) {
 	l.bytesRead = 0
 	l.valuesRead = 0
 	buf := l.bufPool.Get().(*bytes.Buffer)
-	zw := gzip.NewWriter(buf)
+	zw, _ := gzip.NewWriterLevel(buf, 0)
 
 	var n int
 
@@ -200,7 +200,7 @@ outer:
 			l.batchChan <- buf
 
 			buf = l.bufPool.Get().(*bytes.Buffer)
-			zw = gzip.NewWriter(buf)
+			zw, _ = gzip.NewWriterLevel(buf, 0)
 			zw.Write(openbracket)
 			zw.Write(newline)
 			n = 0
@@ -238,11 +238,15 @@ outer:
 func (l *OpenTsdbBulkLoad) processBatches(w LineProtocolWriter, workersGroup *sync.WaitGroup) error {
 	var rerr error
 	for batch := range l.batchChan {
+		reader, _ := gzip.NewReader(batch)
+		buf := make([]byte, 1000000)
+		num, _ := reader.Read(buf)
+		buf = buf[0:num]
 		// Write the batch: try until backoff is not needed.
 		if bulk_load.Runner.DoLoad {
 			var err error
 			for {
-				_, err = w.WriteLineProtocol(batch.Bytes())
+				_, err = w.WriteLineProtocol(buf)
 				if err == BackoffError {
 					l.backingOffChan <- true
 					time.Sleep(l.backoff)
